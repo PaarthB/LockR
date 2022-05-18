@@ -13,7 +13,7 @@
 - If the application faces bottlenecks causing slowed processing (e.g. high CPU usage), or dies off,
   the lock will expire soon and another instance of the application should be able to acquire the lock.
 
-- LockR is based around the redis locking pattern described here: https://redis.io/commands/set.
+- LockR is based around the redis locking pattern described here:https://redis.io/docs/reference/patterns/distributed-locks/
 """
 
 import atexit
@@ -41,6 +41,9 @@ logger = logging.getLogger()
 
 
 class LockRConfig:
+    """
+    Defines the state of LockR, used later for executing the Redis Locking pattern or Redlock Algorithm
+    """
     lock_value_prefix: str = "LockR"
     lock_name: str = "lockr"
     redis_db: int = 0
@@ -134,9 +137,10 @@ class LockRConfig:
 
 
 class LockR:
-    """ Run a given process on a single host / node by applying a Redis lock. """
+    """ LockR is responsible for ensuring exclusive task / application execution.  """
 
     def __init__(self, lockr_config: LockRConfig, dry_run: bool = False):
+        """ Build the setup from the provided config """
         self.config: LockRConfig = lockr_config
         self.dry_run: bool = dry_run
         self.process = None  # Defines the eventual process that will be run by LockR
@@ -173,19 +177,24 @@ class LockR:
             sys.exit(os.EX_PROTOCOL)
 
         self.lockname: str = self.config.name or "lockr:%s" % self.config.command
+        #
         self._lock: Lock = self.redis.lock(name=self.lockname, timeout=self.config.timeout, sleep=self.config.sleep)
 
         # overwrite redis-py's extend script used for extending the TTL value of a redis key
         # This will add additional timeout instead of extend to a new timeout (which is actually set during acquisition)
         self._lock.lua_extend = self.redis.register_script(LUA_EXTEND_SCRIPT)
-
+        
+        # The exception handling functions, to handle if anything goes during the lifetine of the execution of LockR
         atexit.register(self.crash)
         atexit.register(self.handle_signal, signal.SIGTERM)
         atexit.register(self.handle_signal, signal.SIGINT)
         atexit.register(self.handle_signal, signal.SIGHUP)
 
     def run(self):
-        """ Start the process if it's not being run by someone else, else keep waiting until the lock is released """
+        """ 
+        Start the process if it's not being run by someone else, else keep waiting until the lock is released 
+        This means process execution is also paused until the lock can be acquired
+        """
         logger.info("Waiting on lock, currently held by %s", self.owner())
         try:
             # continues to wait until the lock is available (expired or released)
