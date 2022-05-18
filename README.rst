@@ -26,7 +26,7 @@ Why LockR?
 ----------
 
 - Manage any application in the cloud: 
-    *  It is meant to be very general purpose CLI tool, to provide applications with distributed locking, to prevent duplicate instances of the application running at the same time
+    *  It is meant to be a very general purpose CLI tool, to provide applications with distributed locking mechanism, to prevent duplicate instances of the application running at the same time
     * Usable for all sorts of applications (Flask app, Spring boot app, Celery workers etc.) if you want to prevent more than one instance of the app running at the same time.
 - Extremely fault-tolerant: 
     * `LockR` is designed to be resilient to network errors, application problems and so on. So you only need to worry about your own application.
