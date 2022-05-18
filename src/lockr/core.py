@@ -21,7 +21,6 @@ import logging
 import os
 import shlex
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -30,9 +29,10 @@ from functools import reduce
 from typing import Union, Type, List
 
 import redis
-from redis import StrictRedis
+from redis import StrictRedis, RedisCluster
+
 from redis.exceptions import LockNotOwnedError
-from rediscluster import RedisCluster
+from redis.lock import Lock
 
 from src.lockr.constants import LUA_EXTEND_SCRIPT
 
@@ -41,33 +41,31 @@ logger = logging.getLogger()
 
 
 class LockRConfig:
-    lock_value_prefix = "LockR"
-    lock_name = "lockr"
-    redis_db = 0
+    lock_value_prefix: str = "LockR"
+    lock_name: str = "lockr"
+    redis_db: int = 0
 
-    def __init__(self, command: str, redis_host_or_startup_nodes: Type[Union[str, List]], lockname: str,
-                 lock_prefix: str,
+    def __init__(self, command: str, redis_host_or_startup_nodes: Type[Union[str, List]], lockname: str, lock_prefix: str,
                  redis_cls: Type[Union[StrictRedis, RedisCluster]], redis_port: int = 6379, redis_db: int = 0,
                  config_path: str = 'lockr.ini', timeout: int = 1000, redis_password: str = None,
                  use_shell: bool = False):
-        self.essential_lockr_config = ['timeout', 'lockname', 'use_shell', 'command']
-        self.command = command
-        self.use_shell = use_shell
-        self.timeout = timeout / 1000  # convert to seconds
+        self.command: str = command
+        self.use_shell: bool = use_shell
+        self.timeout: float = float(timeout / 1000)  # convert to seconds
         # sleep < timeout, specifically 1/3rd, to ensure we refresh 3 times within each extension period
         # (lock extends by timeout amount 3 times within a single period itself)
-        self.sleep = timeout / (1000.0 * 3)
+        self.sleep: float = float(timeout / (1000.0 * 3))
         self.process = None
 
         # Set the value contained within the lock. Use special prefix if given, else use default one and os PID
-        self.value = "%s-%d" % (lock_prefix, os.getpid())
-        self.port = redis_port
-        self.db = redis_db
-        self.host = redis_host_or_startup_nodes
-        self.name = lockname
-        self.config = config_path
-        self.password = redis_password
-        self.redis_cls = redis_cls
+        self.value: str = "%s-%d" % (lock_prefix, os.getpid())
+        self.port: int = redis_port
+        self.db: int = redis_db
+        self.host: Type[Union[str, List]] = redis_host_or_startup_nodes
+        self.name: str = lockname
+        self.config: str = config_path
+        self.password: str = redis_password
+        self.redis_cls: Type[Union[StrictRedis, RedisCluster]] = redis_cls
 
     @staticmethod
     def from_config_file(config_file_path: str = 'lockr.ini'):
@@ -105,7 +103,7 @@ class LockRConfig:
         else:
             redis_host_or_startup_nodes = [dict(host=node.split(':')[0], port=node.split(':')[1]) for node in
                                            config.get('redis', 'startup_nodes').split('\n')]
-            redis_cls = RedisCluster
+            redis_cls = redis.RedisCluster
 
         lockr_kwargs = dict(
             redis_host_or_startup_nodes=redis_host_or_startup_nodes,
@@ -139,8 +137,8 @@ class LockR:
     """ Run a given process on a single host / node by applying a Redis lock. """
 
     def __init__(self, lockr_config: LockRConfig, dry_run: bool = False):
-        self.config = lockr_config
-        self.dry_run = dry_run
+        self.config: LockRConfig = lockr_config
+        self.dry_run: bool = dry_run
         self.process = None  # Defines the eventual process that will be run by LockR
 
         redis_kwargs = dict(password=self.config.password)
@@ -155,7 +153,7 @@ class LockR:
         else:  # Redis via HTTP connection
             redis_kwargs.update(dict(host=self.config.host, port=self.config.port))
             logger.info("LockR will connect to single Redis instance")
-        self.redis = self.config.redis_cls(**redis_kwargs)
+        self.redis: Type[Union[StrictRedis, RedisCluster]] = self.config.redis_cls(**redis_kwargs)
 
         if dry_run:
             logger.info(" --- Valid configuration found. Dry run verification successful ---")
@@ -174,8 +172,8 @@ class LockR:
                          '2.6.12')
             sys.exit(os.EX_PROTOCOL)
 
-        self.lockname = self.config.name or "lockr:%s" % self.config.command
-        self._lock = self.redis.lock(name=self.lockname, timeout=self.config.timeout, sleep=self.config.sleep)
+        self.lockname: str = self.config.name or "lockr:%s" % self.config.command
+        self._lock: Lock = self.redis.lock(name=self.lockname, timeout=self.config.timeout, sleep=self.config.sleep)
 
         # overwrite redis-py's extend script used for extending the TTL value of a redis key
         # This will add additional timeout instead of extend to a new timeout (which is actually set during acquisition)
@@ -185,34 +183,30 @@ class LockR:
         atexit.register(self.handle_signal, signal.SIGTERM)
         atexit.register(self.handle_signal, signal.SIGINT)
         atexit.register(self.handle_signal, signal.SIGHUP)
-        # signal.signal(signal.SIGINT, self.handle_signal)
-        # signal.signal(signal.SIGTERM, self.handle_signal)
-        # signal.signal(signal.SIGHUP, self.handle_signal)
 
     def run(self):
         """ Start the process if it's not being run by someone else, else keep waiting until the lock is released """
         logger.info("Waiting on lock, currently held by %s", self.owner())
         try:
+            # continues to wait until the lock is available (expired or released)
             if self._lock.acquire(token=self.config.value, blocking=True):
                 logger.info("Lock '%s' acquired", self.lockname)
 
                 # We got the lock, so we make sure the process is running and keep refreshing the lock -
                 # if we ever stop for any reason, for example because our host died, the lock will soon expire.
-
-                # first_run = True  # On first run, we'll update the TTL extension amount (to be consistent with sleep)
                 while True:
                     if self.process is None:  # Process not started yet
                         self.process = self.start(self.config.command if not self.dry_run else "print 1")
                         logger.info("Started process with PID %d", self.process.pid)
-                    child_status = self.process.poll()
-                    if child_status is not None:
-                        # Process died, due to some issue or normal exit procedure
-                        logger.error("Child died with exit code %d", child_status)
-                        sys.exit(1)
-
-                    # increase TTL / refresh the lock by the config 'timeout' amount and sleep
+                    process_status = self.process.poll()
                     try:
-                        self._lock.extend(int(self.config.timeout))
+                        if process_status is not None:
+                            # Process died, due to some issue or normal exit procedure
+                            logger.error("Process terminated with exit code %d", process_status)
+                            self._lock.release()  # release the lock since we no longer need it
+                            sys.exit(1)
+                        # increase TTL / refresh the lock by the config 'timeout' amount and sleep
+                        self._lock.extend(self.config.timeout)
                     except LockNotOwnedError as e:
                         logger.warning("Lock refresh failed, trying to re-acquire. Error: %s", str(e))
                         owner = self.owner()
@@ -230,11 +224,6 @@ class LockR:
                             self.cleanup()
                             sys.exit(os.EX_UNAVAILABLE)
                     time.sleep(self.config.sleep)
-                    # if first_run:
-                    #     # we don't want to double up the extension period each time we sleep. Instead we increase it by
-                    #     # the sleep amount, to ensure we don't get lock values with very large TTL
-                    #     self.config.timeout = self.config.sleep
-                    #     first_run = False
         except (RuntimeError, Exception) as e:
             logger.exception("An exception occurred while trying to acquire/refresh the lock. Error: %s", str(e))
             self.cleanup()
