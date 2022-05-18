@@ -1,0 +1,7 @@
+.python-version
+.idea
+venv/
+.pytest_cache/
+lockr.egg-info/
+dist/
+build/
