@@ -9,7 +9,7 @@ long_description = open('README.rst').read()
 
 setup(
     name='lockr',
-    version='1.0.9',
+    version='1.0.11',
     license='Apache License, Version 2.0',
     description='CLI tool leveraging Redis locking pattern for management of distributed applications in cloud',
     long_description=long_description,

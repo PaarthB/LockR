@@ -217,7 +217,9 @@ class LockR:
                         # increase TTL / refresh the lock by the config 'timeout' amount and sleep
                         self._lock.extend(self.config.timeout)
                     except LockNotOwnedError as e:
-                        logger.warning("Lock refresh failed, trying to re-acquire. Error: %s", str(e))
+                        if process_status is not None:  # No need to re-acquire since process has been removed
+                            sys.exit(1)
+                        logger.warning("Lock refresh/release failed, trying to re-acquire. Error: %s", str(e))
                         owner = self.owner()
                         if owner is None:
                             if self._lock.acquire(token=self.config.value, blocking=False):
