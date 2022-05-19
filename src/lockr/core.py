@@ -219,7 +219,7 @@ class LockR:
                     except LockNotOwnedError as e:
                         if process_status is not None:  # No need to re-acquire since process has been removed
                             sys.exit(1)
-                        logger.warning("Lock refresh/release failed, trying to re-acquire. Error: %s", str(e))
+                        logger.warning("Lock refresh failed, trying to re-acquire. Error: %s", str(e))
                         owner = self.owner()
                         if owner is None:
                             if self._lock.acquire(token=self.config.value, blocking=False):
