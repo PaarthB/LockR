@@ -31,7 +31,7 @@ class TestLockR:
         assert lockr_config.db == 1
         assert lockr_config.password is None
         assert lockr_config.process is None
-        assert lockr_config.startup_nodes is None
+        assert lockr_config.cluster_nodes is None
 
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_config_valid_cluster_mode(self, caplog, monkeypatch):
@@ -52,8 +52,10 @@ class TestLockR:
         assert lockr_config.db == 1
         assert lockr_config.password is None
         assert lockr_config.process is None
-        for node in lockr_config.startup_nodes:
+        for node in lockr_config.cluster_nodes:
             assert isinstance(node, ClusterNode)
+            assert node.host == 'redis-host'
+            assert node.port == 1111
 
     def test_lockr_config_invalid__no_redis_section(self, caplog):
         with caplog.at_level(logging.INFO):

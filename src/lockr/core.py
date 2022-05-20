@@ -50,7 +50,7 @@ class LockRConfig:
     redis_db: int = 0
 
     def __init__(self, command: str, lockname: str, lock_prefix: str, redis_cls: Type[Union[StrictRedis, RedisCluster]],
-                 redis_port: int = 6379, redis_db: int = 0, startup_nodes: List[str] = None, host: str = '',
+                 redis_port: int = 6379, redis_db: int = 0, cluster_nodes: List[str] = None, host: str = '',
                  config_path: str = 'lockr.ini', timeout: int = 1000, redis_password: str = None,
                  use_shell: bool = False):
         self.command: str = command
@@ -66,7 +66,7 @@ class LockRConfig:
         self.port: int = redis_port
         self.db: int = redis_db
         self.host: str = host
-        self.startup_nodes: List[str] = startup_nodes
+        self.cluster_nodes: List[str] = cluster_nodes
         self.name: str = lockname
         self.config: str = config_path
         self.password: str = redis_password
@@ -89,13 +89,13 @@ class LockRConfig:
         if not config.has_option('lockr', 'command'):
             logger.error("[lockr] section does not have 'command' defined")
             sys.exit(os.EX_CONFIG)
-        if config.has_option('redis', 'host') and config.has_option('redis', 'startup_nodes'):
-            logger.error("[redis] section of config file must specify one of 'host' or 'startup_nodes', not both.")
+        if config.has_option('redis', 'host') and config.has_option('redis', 'cluster_nodes'):
+            logger.error("[redis] section of config file must specify one of 'host' or 'cluster_nodes', not both.")
             sys.exit(os.EX_CONFIG)
 
-        if not config.has_option('redis', 'host') and not config.has_option('redis', 'startup_nodes'):
+        if not config.has_option('redis', 'host') and not config.has_option('redis', 'cluster_nodes'):
             logger.error(
-                "[redis] section of config file must specify either 'host' or 'startup_nodes' section. "
+                "[redis] section of config file must specify either 'host' or 'cluster_nodes' section. "
                 "Didn't find either.")
             sys.exit(os.EX_CONFIG)
 
@@ -109,18 +109,16 @@ class LockRConfig:
         # Redis Cluster mode
         else:
             redis_nodes = [
-                ClusterNode(host=os.path.expandvars(node.split(':')[0]), port=os.path.expandvars(node.split(':')[1]))
-                for node in config.get('redis', 'startup_nodes').split('\n')
+                ClusterNode(host=os.path.expandvars(node.split(':')[0]), port=int(os.path.expandvars(node.split(':')[1])))
+                for node in config.get('redis', 'cluster_nodes').split('\n')
             ]
             redis_cls = redis.RedisCluster
-            print(redis_nodes)
 
         lockr_kwargs = dict(
-            host=redis_host, startup_nodes=redis_nodes,
+            host=redis_host, cluster_nodes=redis_nodes,
             timeout=config.getint('lockr', 'timeout', fallback=1000),
             use_shell=config.getboolean('lockr', 'use_shell', fallback=False),
         )
-        print(lockr_kwargs)
 
         # Update the redis instance class to be used
         lockr_kwargs.update(dict(redis_cls=redis_cls))
@@ -154,10 +152,10 @@ class LockR:
         self.process = None  # Defines the eventual process that will be run by LockR
 
         redis_kwargs = dict(password=self.config.password)
-        if self.config.db and not self.config.startup_nodes:
+        if self.config.db and not self.config.cluster_nodes:
             redis_kwargs.update(dict(db=self.config.db))
-        if self.config.startup_nodes:  # Redis Cluster mode
-            redis_kwargs.update(dict(startup_nodes=self.config.startup_nodes))
+        if self.config.cluster_nodes:  # Redis Cluster mode
+            redis_kwargs.update(dict(startup_nodes=self.config.cluster_nodes))
             logger.info("LockR will connect to a Redis Cluster.")
         elif "/" in self.config.host:  # Redis via unix-socket connection implementation
             redis_kwargs.update(dict(unix_socket_path=self.config.host))
