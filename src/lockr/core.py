@@ -30,6 +30,7 @@ from typing import Union, Type, List
 
 import redis
 from redis import StrictRedis, RedisCluster
+from redis.cluster import ClusterNode
 
 from redis.exceptions import LockNotOwnedError
 from redis.lock import Lock
@@ -48,8 +49,8 @@ class LockRConfig:
     lock_name: str = "lockr"
     redis_db: int = 0
 
-    def __init__(self, command: str, redis_host_or_startup_nodes: Type[Union[str, List]], lockname: str, lock_prefix: str,
-                 redis_cls: Type[Union[StrictRedis, RedisCluster]], redis_port: int = 6379, redis_db: int = 0,
+    def __init__(self, command: str, lockname: str, lock_prefix: str, redis_cls: Type[Union[StrictRedis, RedisCluster]],
+                 redis_port: int = 6379, redis_db: int = 0, startup_nodes: List[str] = None, host: str = '',
                  config_path: str = 'lockr.ini', timeout: int = 1000, redis_password: str = None,
                  use_shell: bool = False):
         self.command: str = command
@@ -64,7 +65,8 @@ class LockRConfig:
         self.value: str = "%s-%d" % (lock_prefix, os.getpid())
         self.port: int = redis_port
         self.db: int = redis_db
-        self.host: Type[Union[str, List]] = redis_host_or_startup_nodes
+        self.host: str = host
+        self.startup_nodes: List[str] = startup_nodes
         self.name: str = lockname
         self.config: str = config_path
         self.password: str = redis_password
@@ -72,6 +74,8 @@ class LockRConfig:
 
     @staticmethod
     def from_config_file(config_file_path: str = 'lockr.ini'):
+        redis_host = ''
+        redis_nodes = None
         config = ConfigParser(os.environ)
         if not os.path.exists(config_file_path):
             logger.error(
@@ -99,20 +103,24 @@ class LockRConfig:
         if config.has_option('redis', 'host'):
             # Single Redis mode
             host = os.path.expandvars(config.get('redis', 'host'))
-            redis_host_or_startup_nodes = host if host != config.get('redis', 'host') else os.getenv(host, 'localhost')
+            redis_host = host if host != config.get('redis', 'host') else os.getenv(host, 'localhost')
             redis_cls = redis.StrictRedis
 
         # Redis Cluster mode
         else:
-            redis_host_or_startup_nodes = [dict(host=node.split(':')[0], port=node.split(':')[1]) for node in
-                                           config.get('redis', 'startup_nodes').split('\n')]
+            redis_nodes = [
+                ClusterNode(host=os.path.expandvars(node.split(':')[0]), port=os.path.expandvars(node.split(':')[1]))
+                for node in config.get('redis', 'startup_nodes').split('\n')
+            ]
             redis_cls = redis.RedisCluster
+            print(redis_nodes)
 
         lockr_kwargs = dict(
-            redis_host_or_startup_nodes=redis_host_or_startup_nodes,
+            host=redis_host, startup_nodes=redis_nodes,
             timeout=config.getint('lockr', 'timeout', fallback=1000),
             use_shell=config.getboolean('lockr', 'use_shell', fallback=False),
         )
+        print(lockr_kwargs)
 
         # Update the redis instance class to be used
         lockr_kwargs.update(dict(redis_cls=redis_cls))
@@ -146,12 +154,12 @@ class LockR:
         self.process = None  # Defines the eventual process that will be run by LockR
 
         redis_kwargs = dict(password=self.config.password)
-        if lockr_config.db:
+        if self.config.db and not self.config.startup_nodes:
             redis_kwargs.update(dict(db=self.config.db))
-        if isinstance(lockr_config.host, list):  # Redis Cluster mode
-            redis_kwargs.update(dict(startup_nodes=self.config.host))
+        if self.config.startup_nodes:  # Redis Cluster mode
+            redis_kwargs.update(dict(startup_nodes=self.config.startup_nodes))
             logger.info("LockR will connect to a Redis Cluster.")
-        elif "/" in lockr_config.host:  # Redis via unix-socket connection implementation
+        elif "/" in self.config.host:  # Redis via unix-socket connection implementation
             redis_kwargs.update(dict(unix_socket_path=self.config.host))
             logger.info("LockR will connect to single Redis instance via Unix domain socket.")
         else:  # Redis via HTTP connection
@@ -183,7 +191,7 @@ class LockR:
         # overwrite redis-py's extend script used for extending the TTL value of a redis key
         # This will add additional timeout instead of extend to a new timeout (which is actually set during acquisition)
         self._lock.lua_extend = self.redis.register_script(LUA_EXTEND_SCRIPT)
-        
+
         # The exception handling functions, to handle if anything goes during the lifetine of the execution of LockR
         atexit.register(self.crash)
         atexit.register(self.handle_signal, signal.SIGTERM)

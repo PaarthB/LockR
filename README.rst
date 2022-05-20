@@ -83,13 +83,18 @@ A general configuration looks as follows:
     lock_prefix = test-prefix
     
     [redis]
-    # defaults to localhost. Specify environment variable or pass directly as well
+    # defaults to localhost. Specify environment variable or pass directly as well. Conflicts with 'cluster_nodes' (only one can be specified).
     host = ${REDIS_HOST}
-    
+
+    # Specify all the cluster nodes each in new line. Conflicts with 'host' (only one can be specified).
+    # Currently only works with environment variables
+    # The nodes must have cluster mode enabled
+    cluster_nodes = ${REDIS_HOST}:${REDIS_HOST}
+
     # port is optional and defaults to 6379. Specify environment variable or pass directly as well
-    port = ${REDIS_PORT}
+    port = ${REDIS_HOST}
     
-    # In single Redis server mode only, you can SELECT the database.
+    # In single Redis server mode only, you can SELECT the database. Defaults to 0. Ignored for cluster_nodes
     database = 1
 
 All the default parameters are optional, which take the default value if nothing is specified. It is recommended not to update them,
