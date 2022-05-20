@@ -104,7 +104,7 @@ class LockRConfig:
             # Single Redis mode
             host = os.path.expandvars(config.get('redis', 'host'))
             redis_host = host if host != config.get('redis', 'host') else os.getenv(host, 'localhost')
-            redis_cls = redis.StrictRedis
+            redis_cls = StrictRedis
 
         # Redis Cluster mode
         else:
@@ -112,7 +112,7 @@ class LockRConfig:
                 ClusterNode(host=os.path.expandvars(node.split(':')[0]), port=int(os.path.expandvars(node.split(':')[1])))
                 for node in config.get('redis', 'cluster_nodes').split('\n')
             ]
-            redis_cls = redis.RedisCluster
+            redis_cls = RedisCluster
 
         lockr_kwargs = dict(
             host=redis_host, cluster_nodes=redis_nodes,

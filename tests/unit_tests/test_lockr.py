@@ -5,7 +5,8 @@ from os.path import dirname
 
 import pytest
 from mock import patch, MagicMock
-from redis.client import StrictRedis
+from redis import StrictRedis, RedisCluster
+
 from redis.cluster import ClusterNode
 from src.lockr.core import LockRConfig
 
@@ -26,7 +27,7 @@ class TestLockR:
         assert lockr_config.name == "test-lockr"
         assert lockr_config.timeout == 1  # 1s
         assert lockr_config.sleep == 1 / 3  # sleep time should always be
-        assert type(lockr_config.redis_cls) == type(StrictRedis)
+        assert lockr_config.redis_cls.__name__ == StrictRedis.__name__
         assert lockr_config.value == 'test-prefix-1'
         assert lockr_config.db == 1
         assert lockr_config.password is None
@@ -47,7 +48,7 @@ class TestLockR:
         assert lockr_config.name == "test-lockr"
         assert lockr_config.timeout == 1  # 1s
         assert lockr_config.sleep == 1 / 3  # sleep time should always be
-        assert type(lockr_config.redis_cls) == type(StrictRedis)
+        assert lockr_config.redis_cls.__name__ == RedisCluster.__name__
         assert lockr_config.value == 'test-prefix-1'
         assert lockr_config.db == 1
         assert lockr_config.password is None
