@@ -21,6 +21,7 @@ import logging
 import os
 import shlex
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -62,7 +63,7 @@ class LockRConfig:
         self.process = None
 
         # Set the value contained within the lock. Use special prefix if given, else use default one and os PID
-        self.value: str = "%s-%d" % (lock_prefix, os.getpid())
+        self.value: str = "%s-%d" % (lock_prefix + '-' + socket.getfqdn(), os.getpid())
         self.port: int = redis_port
         self.db: int = redis_db
         self.host: str = host
