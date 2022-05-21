@@ -1,6 +1,8 @@
-import click
 import os
-from src.lockr.core import LockRConfig, LockR
+
+import click
+
+from lockr.core import LockRConfig, LockR
 
 
 # Command Group

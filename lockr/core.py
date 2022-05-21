@@ -35,7 +35,7 @@ from redis.cluster import ClusterNode
 from redis.exceptions import LockNotOwnedError
 from redis.lock import Lock
 
-from src.lockr.constants import LUA_EXTEND_SCRIPT
+from lockr.constants import LUA_EXTEND_SCRIPT
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s LockR: %(message)s', datefmt='%Y-%m-%d %H:%M:%S %Z')
 logger = logging.getLogger()

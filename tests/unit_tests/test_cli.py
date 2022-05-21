@@ -4,7 +4,7 @@ from os.path import dirname
 
 import pytest
 from click.testing import CliRunner
-from src.cli.main import cli_run
+from cli.main import cli_run
 
 
 class TestCliRunner:

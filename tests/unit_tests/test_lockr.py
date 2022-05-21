@@ -8,7 +8,7 @@ from mock import patch, MagicMock
 from redis import StrictRedis, RedisCluster
 
 from redis.cluster import ClusterNode
-from src.lockr.core import LockRConfig
+from lockr.core import LockRConfig
 
 
 class TestLockR:

@@ -9,14 +9,14 @@ long_description = open('README.rst').read()
 
 setup(
     name='lockr',
-    version='2.0.1',
+    version='0.0.1',
     license='Apache License, Version 2.0',
     description='CLI tool leveraging Redis locking pattern for management of distributed applications in cloud',
     long_description=long_description,
     author='Paarth Bhasin',
     long_description_content_type='text/x-rst',
     url='https://github.com/PaarthB/LockR/',
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(include=['src', 'src.*'], exclude=["tests"]),
     include_package_data=True,
     zip_safe=False,
     python_requires='>=3.8.13',
@@ -38,7 +38,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'lockr = src.cli.main:main',
+            'lockr=cli.main:main',
         ]
     },
 )
