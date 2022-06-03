@@ -1,5 +1,5 @@
 """
-#### LockR is a reliable cli tool, providing easy access to redis locking pattern, usable by all applications ####
+>> LockR is a reliable cli tool, providing easy access to redis locking pattern, usable by all applications ####
 
 - LockR provides management of distributed applications which have a strict requirement of not running more than one
   instance at a time.
@@ -13,7 +13,7 @@
 - If the application faces bottlenecks causing slowed processing (e.g. high CPU usage), or dies off,
   the lock will expire soon and another instance of the application should be able to acquire the lock.
 
-- LockR is based around the redis locking pattern described here:https://redis.io/docs/reference/patterns/distributed-locks/
+- LockR is based around the redis locking pattern described here: https://redis.io/docs/reference/patterns/distributed-locks/
 """
 
 import atexit

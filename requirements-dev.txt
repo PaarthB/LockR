@@ -4,3 +4,4 @@ requests==2.27.1
 pytest
 fakeredis[lua]==1.8
 mockito==1.3.0
+mock==4.0.3
