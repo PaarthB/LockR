@@ -20,8 +20,10 @@ class TestLockR:
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
 
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
-                                                    redis_testing=True)
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
         lockr_config.command = "sleep 99999999999"  # Create a long-running command, which keeps LockR thread alive
         lockr_instance = LockR(lockr_config=lockr_config)
 
@@ -48,8 +50,10 @@ class TestLockR:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
-                                                    redis_testing=True)
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
         lockr_config.command = "echo 'test lockr'"  # short-lived command
         lockr_instance = LockR(lockr_config=lockr_config)
 
@@ -73,8 +77,10 @@ class TestLockR:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
-                                                    redis_testing=True)
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
         lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
@@ -104,8 +110,10 @@ class TestLockR:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
-                                                    redis_testing=True)
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
         lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
@@ -136,8 +144,10 @@ class TestLockR:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
-                                                    redis_testing=True)
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
         lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
@@ -160,5 +170,3 @@ class TestLockR:
             verify(lockr_instance, times=1).start("sleep infinity")  # Assert command was called
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert "Lock refresh failed, but successfully re-acquired unclaimed lock" in caplog.text
-
-

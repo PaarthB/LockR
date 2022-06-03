@@ -20,7 +20,9 @@ class TestLockRConfig:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini')
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+        )
         assert shlex.split(lockr_config.command)[0] == "echo 'test lockr'"
         assert lockr_config.host == "redis-host"
         assert lockr_config.port == 1111
@@ -41,7 +43,9 @@ class TestLockRConfig:
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
 
-        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-1.ini')
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-1.ini',
+        )
         assert shlex.split(lockr_config.command)[0] == "echo 'test lockr'"
         assert lockr_config.host == ''
         assert lockr_config.port == 1111
@@ -62,28 +66,36 @@ class TestLockRConfig:
     def test_lockr_config_invalid__no_redis_section(self, caplog):
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
-                LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-2.ini')
+                LockRConfig.from_config_file(
+                    config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-2.ini',
+                )
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
     def test_lockr_config_invalid__no_command(self, caplog):
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
-                LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-3.ini')
+                LockRConfig.from_config_file(
+                    config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-3.ini',
+                )
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "[lockr] section does not have 'command' defined" in caplog.text
 
     def test_lockr_config_invalid__no_lockr_section(self, caplog):
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
-                LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-4.ini')
+                LockRConfig.from_config_file(
+                    config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-4.ini',
+                )
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
     def test_lockr_config_invalid__no_redis_host_or_startup_nodes(self, caplog):
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
-                LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-5.ini')
+                LockRConfig.from_config_file(
+                    config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-5.ini',
+                )
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "[redis] section of config file must specify either 'host' or 'startup_nodes' section. " \
                        "Didn't find either." in caplog.text
@@ -91,7 +103,9 @@ class TestLockRConfig:
     def test_lockr_config_invalid__both_redis_host_and_startup_nodes(self, caplog):
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
-                LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr-6.ini')
+                LockRConfig.from_config_file(
+                    config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-6.ini',
+                )
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "[redis] section of config file must specify either 'host' or 'startup_nodes' section. " \
                        "Didn't find either." in caplog.text
