@@ -211,10 +211,10 @@ class LockR:
         atexit.register(self.handle_signal, signal.SIGHUP)
 
     def run(self):
-        """ 
+        """`
         Start the process if it's not being run by someone else, else keep waiting until the lock is released 
         This means process execution is also paused until the lock can be acquired
-        """
+        `"""
         logger.info("Waiting on lock, currently held by %s", self.owner())
         try:
             # continues to wait until the lock is available (expired or released)
@@ -288,7 +288,7 @@ class LockR:
         assert self.process.poll() is not None
 
     def handle_signal(self, sig):
-        """ Handles signals, surprisingly """
+        """ Handles signals, logging appropriate message and cleanup """
         if sig in [signal.SIGINT]:
             logger.warning("Ctrl-C pressed, shutting down...")
         if sig in [signal.SIGTERM]:
