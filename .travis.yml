@@ -1,0 +1,15 @@
+language: python
+
+python:
+  - 3.9
+
+cache: pip
+
+virtualenv:
+    system-site-packages: true
+
+install:
+  - pip install -r requirements-dev.txt
+
+script:
+  - pytest tests/
