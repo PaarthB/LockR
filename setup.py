@@ -9,7 +9,7 @@ long_description = open('README.rst').read()
 
 setup(
     name='lockr',
-    version='0.0.3',
+    version='0.0.6',
     license='Apache License, Version 2.0',
     description='CLI tool leveraging Redis locking pattern for management of distributed applications in cloud',
     long_description=long_description,
@@ -35,6 +35,7 @@ setup(
         'requests==2.27.1',
         'click==8.1.2',
         'redis==4.3.1',
+        'fakeredis[lua]==1.8'
     ],
     entry_points={
         'console_scripts': [

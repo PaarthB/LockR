@@ -79,7 +79,7 @@ A general configuration looks as follows:
     use_shell = no
     
     # Specify any custom lock prefix for the lock value stored in key 'lockname'
-    # Defaults to 'LockR'
+    # Defaults to 'LockR'. Accepts environment variables as well
     lock_prefix = test-prefix
     
     [redis]

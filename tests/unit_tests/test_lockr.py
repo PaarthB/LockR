@@ -1,24 +1,53 @@
 import logging
 import os
 import shlex
+import socket
+import time
 from os.path import dirname
+from threading import Thread
 
 import pytest
 from mock import patch, MagicMock
 from redis import StrictRedis, RedisCluster
-
+from fakeredis import FakeStrictRedis
 from redis.cluster import ClusterNode
-from lockr.core import LockRConfig
+from lockr.core import LockRConfig, LockR
 
 
 class TestLockR:
+    @patch('os.getpid', MagicMock(return_value=1))
+    def test_lockr_run(self, caplog, monkeypatch):
+        monkeypatch.setenv('REDIS_HOST', 'redis-host')
+        monkeypatch.setenv('REDIS_PORT', '1111')
+        lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini',
+                                                    redis_testing=True)
+        lockr_config.command = "sleep 99999999999"  # Create a long running command, which keeps LockR thread alive
+        lockr_instance = LockR(lockr_config=lockr_config)
+
+        # Ensure FakeStrictRedis is being used for testing
+        assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
+        with caplog.at_level(logging.INFO):
+
+            assert lockr_instance.owner() is None  # No lock exists in redis yet
+
+            lockr_thread = Thread(target=lockr_instance.run, daemon=True)
+            lockr_thread.start()  # Start the lockr instance in separate thread to make this a non-blocking operation
+            time.sleep(1)  # Sleep few seconds to give chance for thread to run
+            assert "Waiting on lock, currently held by None" in caplog.text
+            assert f"Lock '{lockr_config.name}' acquired" in caplog.text  # Assert lock was acquired
+            assert "Started process with PID" in caplog.text  # Assert the process was started
+
+        assert lockr_instance.owner().decode('utf-8', 'ignore') == lockr_config.value  # Ensure a lock value is created
+
+
+class TestLockRConfig:
 
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_config_valid_single_host(self, caplog, monkeypatch):
         # Setup
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
-
+        monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
         lockr_config = LockRConfig.from_config_file(dirname(os.path.abspath(__file__)) + '/config_files/lockr.ini')
         assert shlex.split(lockr_config.command)[0] == "echo 'test lockr'"
         assert lockr_config.host == "redis-host"
@@ -28,7 +57,7 @@ class TestLockR:
         assert lockr_config.timeout == 1  # 1s
         assert lockr_config.sleep == 1 / 3  # sleep time should always be
         assert lockr_config.redis_cls.__name__ == StrictRedis.__name__
-        assert lockr_config.value == 'test-prefix-1'
+        assert lockr_config.value == f'prefix-testing-{socket.getfqdn()}-1'  # uses prefix from env variable if set
         assert lockr_config.db == 1
         assert lockr_config.password is None
         assert lockr_config.process is None
@@ -49,7 +78,7 @@ class TestLockR:
         assert lockr_config.timeout == 1  # 1s
         assert lockr_config.sleep == 1 / 3  # sleep time should always be
         assert lockr_config.redis_cls.__name__ == RedisCluster.__name__
-        assert lockr_config.value == 'test-prefix-1'
+        assert lockr_config.value == f'test-prefix-{socket.getfqdn()}-1'  # doesn't use environment variable if not set
         assert lockr_config.db == 1
         assert lockr_config.password is None
         assert lockr_config.process is None
@@ -94,3 +123,5 @@ class TestLockR:
                 assert sys_exit.value.code == os.EX_CONFIG
                 assert "[redis] section of config file must specify either 'host' or 'startup_nodes' section. " \
                        "Didn't find either." in caplog.text
+
+

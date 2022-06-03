@@ -29,6 +29,9 @@ from configparser import ConfigParser
 from functools import reduce
 from typing import Union, Type, List
 
+import fakeredis
+from fakeredis import FakeStrictRedis
+
 import redis
 from redis import StrictRedis, RedisCluster
 from redis.cluster import ClusterNode
@@ -53,7 +56,7 @@ class LockRConfig:
     def __init__(self, command: str, lockname: str, lock_prefix: str, redis_cls: Type[Union[StrictRedis, RedisCluster]],
                  redis_port: int = 6379, redis_db: int = 0, cluster_nodes: List[str] = None, host: str = '',
                  config_path: str = 'lockr.ini', timeout: int = 1000, redis_password: str = None,
-                 use_shell: bool = False):
+                 use_shell: bool = False, redis_testing: bool = False):
         self.command: str = command
         self.use_shell: bool = use_shell
         self.timeout: float = float(timeout / 1000)  # convert to seconds
@@ -61,7 +64,7 @@ class LockRConfig:
         # (lock extends by timeout amount 3 times within a single period itself)
         self.sleep: float = float(timeout / (1000.0 * 3))
         self.process = None
-
+        self.redis_testing = redis_testing  # use fake redis for testing purposes
         # Set the value contained within the lock. Use special prefix if given, else use default one and os PID
         self.value: str = "%s-%d" % (lock_prefix + '-' + socket.getfqdn(), os.getpid())
         self.port: int = redis_port
@@ -71,10 +74,10 @@ class LockRConfig:
         self.name: str = lockname
         self.config: str = config_path
         self.password: str = redis_password
-        self.redis_cls: Type[Union[StrictRedis, RedisCluster]] = redis_cls
+        self.redis_cls: Type[Union[StrictRedis, RedisCluster, FakeStrictRedis]] = redis_cls
 
     @staticmethod
-    def from_config_file(config_file_path: str = 'lockr.ini'):
+    def from_config_file(config_file_path: str = 'lockr.ini', redis_testing: bool = False):
         redis_host = ''
         redis_nodes = None
         config = ConfigParser(os.environ)
@@ -124,12 +127,17 @@ class LockRConfig:
         # Update the redis instance class to be used
         lockr_kwargs.update(dict(redis_cls=redis_cls))
 
+        # Update redis testing mode (for using fakeredis instead of real redis)
+        lockr_kwargs.update(dict(redis_testing=redis_testing))
+
         # Update the lockname
         lockr_kwargs.update(dict(lockname=config.get('lockr', 'lockname', fallback=LockRConfig.lock_name)))
 
         # Update the lock value prefix
-        lockr_kwargs.update(
-            dict(lock_prefix=config.get('lockr', 'lock_prefix', fallback=LockRConfig.lock_value_prefix)))
+        lock_prefix = config.get('lockr', 'lock_prefix', fallback=LockRConfig.lock_value_prefix)
+        expanded_lock_prefix = os.path.expandvars(lock_prefix)
+        lock_prefix = expanded_lock_prefix if expanded_lock_prefix != lock_prefix else lock_prefix
+        lockr_kwargs.update(dict(lock_prefix=lock_prefix))
 
         if config.has_option('redis', 'port'):
             port = os.path.expandvars(config.get('redis', 'port'))
@@ -151,7 +159,7 @@ class LockR:
         self.config: LockRConfig = lockr_config
         self.dry_run: bool = dry_run
         self.process = None  # Defines the eventual process that will be run by LockR
-
+        self.redis: Type[Union[StrictRedis, RedisCluster, FakeStrictRedis]]
         redis_kwargs = dict(password=self.config.password)
         if self.config.db and not self.config.cluster_nodes:
             redis_kwargs.update(dict(db=self.config.db))
@@ -164,24 +172,29 @@ class LockR:
         else:  # Redis via HTTP connection
             redis_kwargs.update(dict(host=self.config.host, port=self.config.port))
             logger.info("LockR will connect to single Redis instance")
-        self.redis: Type[Union[StrictRedis, RedisCluster]] = self.config.redis_cls(**redis_kwargs)
+        if self.config.redis_testing:
+            fake_redis_server = fakeredis.FakeServer()
+            self.redis = FakeStrictRedis(server=fake_redis_server)
+        else:
+            self.redis = self.config.redis_cls(**redis_kwargs)
 
         if dry_run:
             logger.info(" --- Valid configuration found. Dry run verification successful ---")
             sys.exit(0)
-        try:
-            redis_info = self.redis.info()
-        except redis.exceptions.ConnectionError as e:
-            logger.exception("Couldn't connect to Redis: %s", str(e))
-            sys.exit(os.EX_NOHOST)
+        if not self.config.redis_testing:
+            try:
+                redis_info = self.redis.info()
+            except redis.exceptions.ConnectionError as e:
+                logger.exception("Couldn't connect to Redis: %s", str(e))
+                sys.exit(os.EX_NOHOST)
 
-        # Verify redis version is recent enough. 'redis_version' is absent for Redis Cluster, as redis_info is a dict of
-        # cluster nodes - it is not required for redis clusters.
-        if 'redis_version' in redis_info and reduce(lambda l, r: l * 1000 + r,
-                                                    map(int, redis_info['redis_version'].split('.'))) < 2006012:
-            logger.error("Redis version is too old. You got %s, minimum requirement is %s", redis_info['redis_version'],
-                         '2.6.12')
-            sys.exit(os.EX_PROTOCOL)
+            # Verify redis version is recent enough. 'redis_version' is absent for Redis Cluster, as redis_info is a dict of
+            # cluster nodes - it is not required for redis clusters.
+            if 'redis_version' in redis_info and reduce(lambda l, r: l * 1000 + r,
+                                                        map(int, redis_info['redis_version'].split('.'))) < 2006012:
+                logger.error("Redis version is too old. You got %s, minimum requirement is %s", redis_info['redis_version'],
+                             '2.6.12')
+                sys.exit(os.EX_PROTOCOL)
 
         self.lockname: str = self.config.name or "lockr:%s" % self.config.command
         #
@@ -191,7 +204,7 @@ class LockR:
         # This will add additional timeout instead of extend to a new timeout (which is actually set during acquisition)
         self._lock.lua_extend = self.redis.register_script(LUA_EXTEND_SCRIPT)
 
-        # The exception handling functions, to handle if anything goes during the lifetine of the execution of LockR
+        # The exception handling functions, for handling unexpected exceptions during the execution of the LockR process
         atexit.register(self.crash)
         atexit.register(self.handle_signal, signal.SIGTERM)
         atexit.register(self.handle_signal, signal.SIGINT)
