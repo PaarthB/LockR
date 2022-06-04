@@ -41,7 +41,7 @@ class TestLockR:
             assert "Waiting on lock, currently held by None" in caplog.text
             assert f"Lock '{lockr_config.name}' acquired" in caplog.text  # Assert lock was acquired
             assert "Started process with PID" in caplog.text  # Assert the process was started
-            verify(lockr_instance, times=1).start("sleep 99999999999")  # Assert command was called
+            verify(lockr_instance, times=1).start("sleep 999999999")  # Assert command was called
 
         assert lockr_instance.owner().decode('utf-8', 'ignore') == lockr_config.value  # Ensure a lock value is created
 
@@ -106,7 +106,7 @@ class TestLockR:
             assert "Started process with PID" in caplog.text  # Assert the process was started
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert f"Unable to refresh lock, its owned by {lockr_instance.redis.get(lockr_config.name)} now" in caplog.text
-            verify(lockr_instance, times=1).start("sleep infinity")  # Assert command was called
+            verify(lockr_instance, times=1).start("sleep 999999999")  # Assert command was called
             verify(lockr_instance, times=1).cleanup(...)  # Assert cleanup was called after lock re-acquisition failure
 
     def test_lock_extend_fails_and_reacquire_fails(self, monkeypatch, caplog):
@@ -144,7 +144,7 @@ class TestLockR:
             assert "Started process with PID" in caplog.text  # Assert the process was started
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert f"Lock refresh and subsequent re-acquire failed, giving up (Lock now held by None)" in caplog.text
-            verify(lockr_instance, times=1).start("sleep infinity")  # Assert command was called
+            verify(lockr_instance, times=1).start("sleep 999999999")  # Assert command was called
             verify(lockr_instance, times=1).cleanup(...)  # Assert cleanup was called after lock re-acquisition failure
 
     def test_lock_extend_fails_but_reacquires(self, monkeypatch, caplog):
