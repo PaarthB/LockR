@@ -57,7 +57,8 @@ class TestLockR:
         lockr_config.command = "echo 'test lockr'"  # short-lived command
         lockr_instance = LockR(lockr_config=lockr_config)
 
-        spy2(lockr_instance.start)
+        spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
+        spy2(lockr_instance._lock.release)  # Watch executions of lock release
 
         # Ensure FakeStrictRedis is being used for testing
         assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
@@ -70,6 +71,7 @@ class TestLockR:
             assert f"Lock '{lockr_config.name}' acquired" in caplog.text  # Assert lock was acquired
             assert "Started process with PID" in caplog.text  # Assert the process was started
             verify(lockr_instance, times=1).start("echo 'test lockr'")  # Assert command was called
+            verify(lockr_instance._lock, times=1).release(...)  # Assert lock was released after process exit
             assert "Process terminated with exit code 0" in caplog.text  # assert process exited
         assert lockr_instance.owner() is None  # The prior lock was released
 
@@ -84,8 +86,8 @@ class TestLockR:
         lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
-        spy2(lockr_instance.start)
-        spy2(lockr_instance.cleanup)
+        spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
+        spy2(lockr_instance.cleanup)  # watch executions of cleanup method
         
         # Setup mocks on the lock, to simulate a lock being taken over during the execution of LockR by another instance
         # This tries to simulate the case of a GC pause (eg), causing lock to expire and taken by someone else,
@@ -122,8 +124,8 @@ class TestLockR:
         lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
-        spy2(lockr_instance.start)
-        spy2(lockr_instance.cleanup)
+        spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
+        spy2(lockr_instance.cleanup)  # watch executions of cleanup method
         
         # mocking the behaviour for handling the special case when extension and reacquiring have to fail without 
         # a pre-owned lock (due to sudden loss of redis connectivity).
@@ -160,7 +162,7 @@ class TestLockR:
         lockr_config.timeout = 0.1  # Choose a very small TTL, such that lock expires after acquisition
         lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
-        spy2(lockr_instance.start)
+        spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
 
         # Ensure FakeStrictRedis is being used for testing
         assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
