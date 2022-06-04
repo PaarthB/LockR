@@ -130,8 +130,8 @@ class TestLockR:
             verify(lockr_instance, times=1).cleanup(...)  # Assert cleanup was called after lock re-acquisition failure
             # Assert initial acquire is called only once
             verify(lockr_instance._lock, times=1).acquire(token=lockr_config.value, blocking=True)
-            # Assert lock extend was called
-            verify(lockr_instance._lock, atleast=1).extend(lockr_config.timeout)
+            # Assert lock extend is called only once
+            verify(lockr_instance._lock, atmost=1).extend(lockr_config.timeout)
             # Assert lock is not released if process stays up
             verify(lockr_instance._lock, times=0).release(...)
 
