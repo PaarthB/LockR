@@ -69,8 +69,8 @@ class TestLockRConfig:
                 LockRConfig.from_config_file(
                     config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-2.ini',
                 )
-                assert sys_exit.value.code == os.EX_CONFIG
-                assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
+            assert sys_exit.value.code == os.EX_CONFIG
+        assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
     def test_lockr_config_invalid__no_command(self, caplog):
         with caplog.at_level(logging.INFO):
@@ -78,8 +78,8 @@ class TestLockRConfig:
                 LockRConfig.from_config_file(
                     config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-3.ini',
                 )
-                assert sys_exit.value.code == os.EX_CONFIG
-                assert "[lockr] section does not have 'command' defined" in caplog.text
+            assert sys_exit.value.code == os.EX_CONFIG
+        assert "[lockr] section does not have 'command' defined" in caplog.text
 
     def test_lockr_config_invalid__no_lockr_section(self, caplog):
         with caplog.at_level(logging.INFO):
@@ -87,8 +87,8 @@ class TestLockRConfig:
                 LockRConfig.from_config_file(
                     config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-4.ini',
                 )
-                assert sys_exit.value.code == os.EX_CONFIG
-                assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
+            assert sys_exit.value.code == os.EX_CONFIG
+        assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
     def test_lockr_config_invalid__no_redis_host_or_startup_nodes(self, caplog):
         with caplog.at_level(logging.INFO):
@@ -96,9 +96,9 @@ class TestLockRConfig:
                 LockRConfig.from_config_file(
                     config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-5.ini',
                 )
-                assert sys_exit.value.code == os.EX_CONFIG
-                assert "[redis] section of config file must specify either 'host' or 'startup_nodes' section. " \
-                       "Didn't find either." in caplog.text
+            assert sys_exit.value.code == os.EX_CONFIG
+        assert "[redis] section of config file must specify either 'host' or 'cluster_nodes' section. " \
+               "Didn't find either." in caplog.text
 
     def test_lockr_config_invalid__both_redis_host_and_startup_nodes(self, caplog):
         with caplog.at_level(logging.INFO):
@@ -106,8 +106,7 @@ class TestLockRConfig:
                 LockRConfig.from_config_file(
                     config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-6.ini',
                 )
-                assert sys_exit.value.code == os.EX_CONFIG
-                assert "[redis] section of config file must specify either 'host' or 'startup_nodes' section. " \
-                       "Didn't find either." in caplog.text
+            assert sys_exit.value.code == os.EX_CONFIG
+        assert "[redis] section of config file must specify one of 'host' or 'cluster_nodes', not both." in caplog.text
 
 

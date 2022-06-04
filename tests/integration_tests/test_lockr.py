@@ -88,12 +88,14 @@ class TestLockR:
         spy2(lockr_instance.cleanup)
         
         # Setup mocks on the lock, to simulate a lock being taken over during the execution of LockR by another instance
-        # This tries to simulate the case of a GC pause, causing lock to expire and taken by someone else, using mocks
-        # (since this can't be controlled ourselves)
-        when(mock_lock).acquire(...).thenReturn(True)
+        # This tries to simulate the case of a GC pause (eg), causing lock to expire and taken by someone else,
+        # using mocks (since this can't be controlled ourselves)
+        when(mock_lock).acquire(...).thenReturn(True)  # Allow acquiring lock first time
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
         lockr_instance._lock = mock_lock
-        lockr_instance.redis.set(lockr_config.name, lockr_config.value)  # Ensure lock is taken
+
+        # Ensure lock is taken by a different node
+        lockr_instance.redis.set(lockr_config.name, lockr_config.value)
 
         # Ensure FakeStrictRedis is being used for testing
         assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
@@ -124,7 +126,7 @@ class TestLockR:
         spy2(lockr_instance.cleanup)
         
         # mocking the behaviour for handling the special case when extension and reacquiring have to fail without 
-        # a pre-owned lock. 
+        # a pre-owned lock (due to sudden loss of redis connectivity).
         # (Tries to simulate network error, or a connection error, which is why we need to mock this behaviour)
         when(mock_lock).acquire(token=lockr_config.value, blocking=True).thenReturn(True)
         when(mock_lock).acquire(token=lockr_config.value, blocking=False).thenReturn(False)
