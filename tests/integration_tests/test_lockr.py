@@ -73,7 +73,7 @@ class TestLockR:
             assert "Process terminated with exit code 0" in caplog.text  # assert process exited
         assert lockr_instance.owner() is None  # The prior lock was released
 
-    def test_lock_extend_fails_and_fails_reacquire_due_to_preowned_lock(self, monkeypatch, caplog):
+    def test_lock_extend_fails_and_reacquire_fails_due_to_preowned_lock(self, monkeypatch, caplog):
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -88,7 +88,6 @@ class TestLockR:
         spy2(lockr_instance.cleanup)
         when(mock_lock).acquire(...).thenReturn(True)
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
-        when(mock_lock).release(...)
         lockr_instance._lock = mock_lock
         lockr_instance.redis.set(lockr_config.name, lockr_config.value)  # Ensure lock is taken
 
@@ -106,7 +105,7 @@ class TestLockR:
             verify(lockr_instance, times=1).start("sleep infinity")  # Assert command was called
             verify(lockr_instance, times=1).cleanup(...)  # Assert cleanup was called after lock re-acquisition failure
 
-    def test_lock_extend_fails_and_fails_reacquire(self, monkeypatch, caplog):
+    def test_lock_extend_fails_and_reacquire_fails(self, monkeypatch, caplog):
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -122,7 +121,6 @@ class TestLockR:
         when(mock_lock).acquire(token=lockr_config.value, blocking=True).thenReturn(True)
         when(mock_lock).acquire(token=lockr_config.value, blocking=False).thenReturn(False)
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
-        when(mock_lock).release(...)
         lockr_instance._lock = mock_lock
 
         # Ensure FakeStrictRedis is being used for testing
@@ -154,7 +152,6 @@ class TestLockR:
         spy2(lockr_instance.start)
         when(mock_lock).acquire(...).thenReturn(True)
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
-        when(mock_lock).release(...)
         lockr_instance._lock = mock_lock
 
         # Ensure FakeStrictRedis is being used for testing
