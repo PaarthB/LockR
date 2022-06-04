@@ -24,7 +24,7 @@ class TestLockR:
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
             redis_testing=True
         )
-        lockr_config.command = "sleep 99999999999"  # Create a long-running command, which keeps LockR thread alive
+        lockr_config.command = "sleep 999999999"  # Create a long-running command, which keeps LockR thread alive
         lockr_instance = LockR(lockr_config=lockr_config)
 
         # Ensure FakeStrictRedis is being used for testing
@@ -81,11 +81,15 @@ class TestLockR:
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
             redis_testing=True
         )
-        lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
+        lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
         spy2(lockr_instance.start)
         spy2(lockr_instance.cleanup)
+        
+        # Setup mocks on the lock, to simulate a lock being taken over during the execution of LockR by another instance
+        # This tries to simulate the case of a GC pause, causing lock to expire and taken by someone else, using mocks
+        # (since this can't be controlled ourselves)
         when(mock_lock).acquire(...).thenReturn(True)
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
         lockr_instance._lock = mock_lock
@@ -113,14 +117,19 @@ class TestLockR:
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
             redis_testing=True
         )
-        lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
+        lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
         mock_lock = mock(Lock)
         spy2(lockr_instance.start)
         spy2(lockr_instance.cleanup)
+        
+        # mocking the behaviour for handling the special case when extension and reacquiring have to fail without 
+        # a pre-owned lock. 
+        # (Tries to simulate network error, or a connection error, which is why we need to mock this behaviour)
         when(mock_lock).acquire(token=lockr_config.value, blocking=True).thenReturn(True)
         when(mock_lock).acquire(token=lockr_config.value, blocking=False).thenReturn(False)
         when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
+        
         lockr_instance._lock = mock_lock
 
         # Ensure FakeStrictRedis is being used for testing
@@ -146,13 +155,10 @@ class TestLockR:
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
             redis_testing=True
         )
-        lockr_config.command = "sleep infinity"  # long-running command, to allow lock extension
+        lockr_config.timeout = 0.1  # Choose a very small TTL, such that lock expires after acquisition
+        lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
-        mock_lock = mock(Lock)
         spy2(lockr_instance.start)
-        when(mock_lock).acquire(...).thenReturn(True)
-        when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
-        lockr_instance._lock = mock_lock
 
         # Ensure FakeStrictRedis is being used for testing
         assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
@@ -164,6 +170,6 @@ class TestLockR:
             assert "Waiting on lock, currently held by None" in caplog.text
             assert f"Lock '{lockr_config.name}' acquired" in caplog.text  # Assert lock was acquired
             assert "Started process with PID" in caplog.text  # Assert the process was started
-            verify(lockr_instance, times=1).start("sleep infinity")  # Assert command was called
+            verify(lockr_instance, times=1).start("sleep 999999999")  # Assert command was called
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert "Lock refresh failed, but successfully re-acquired unclaimed lock" in caplog.text
