@@ -37,7 +37,6 @@ class TestLockR:
 
         with caplog.at_level(logging.INFO):
             assert lockr_instance.owner() is None  # No lock exists in redis yet
-
             lockr_thread = Thread(target=lockr_instance.run, daemon=True)
             lockr_thread.start()  # Start the lockr instance in separate thread to make this a non-blocking operation
             time.sleep(1)  # Sleep few seconds to give chance for thread to run
@@ -50,7 +49,7 @@ class TestLockR:
             # Assert lock extend was called
             verify(lockr_instance._lock, atleast=1).extend(lockr_config.timeout)
             verify(lockr_instance._lock, times=0).release(...)  # Assert lock is not released if process stays up
-
+        assert lockr_thread.is_alive() is True  # The original thread should never stop, if no exception encountered
         assert lockr_instance.owner().decode('utf-8', 'ignore') == lockr_config.value  # Ensure a lock value is created
 
     @patch('os.getpid', MagicMock(return_value=1))
@@ -63,6 +62,7 @@ class TestLockR:
             redis_testing=True
         )
         lockr_config.command = "echo 'test lockr'"  # short-lived command
+        lockr_config.timeout = 10  # create a long TTL, to ensure its really reset (lock expires in 10s if not released)
         lockr_instance = LockR(lockr_config=lockr_config)
 
         spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
@@ -86,8 +86,8 @@ class TestLockR:
             verify(lockr_instance._lock, times=1).acquire(token=lockr_config.value, blocking=True)
             # Assert lock extend was never called, as we never reach there in case of process exits
             verify(lockr_instance._lock, atmost=1).extend(...)
-
             assert "Process terminated with exit code 0" in caplog.text  # assert process exited
+        assert lockr_thread.is_alive() is False  # thread exits as expected
         assert lockr_instance.owner() is None  # The prior lock was released
 
     def test_lock_extend_fails_and_reacquire_fails_due_to_preowned_lock(self, monkeypatch, caplog):
@@ -134,6 +134,7 @@ class TestLockR:
             verify(lockr_instance._lock, times=1).extend(lockr_config.timeout)
             # Assert lock is not released if process stays up
             verify(lockr_instance._lock, times=0).release(...)
+        assert lockr_thread.is_alive() is False  # thread exits as expected
 
     def test_lock_extend_fails_and_reacquire_fails(self, monkeypatch, caplog):
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
@@ -180,6 +181,7 @@ class TestLockR:
             verify(lockr_instance._lock, times=1).extend(lockr_config.timeout)
             # Assert subsequent acquire was called (due to extension failure)
             verify(lockr_instance._lock, times=1).acquire(token=lockr_config.value, blocking=False)
+        assert lockr_thread.is_alive() is False  # thread exits as expected
 
     def test_lock_extend_fails_but_reacquires(self, monkeypatch, caplog):
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
@@ -217,5 +219,17 @@ class TestLockR:
             # Assert lock extend is called atleast once (can be more due to multiple iterations that might have passed)
             verify(lockr_instance._lock, atleast=1).extend(lockr_config.timeout)
 
+            owner = None
+            # ensure owner is being eventually set as it keeps expiring very quickly
+            # This while loop eventually always exits, showing the owner is set
+            while not owner:
+                owner = lockr_instance.owner()
+                if owner is not None:
+                    break
+                    
+            assert owner is not None
+            assert owner.decode('utf-8', 'ignore') == lockr_config.value
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert "Lock refresh failed, but successfully re-acquired unclaimed lock" in caplog.text
+            assert lockr_thread.is_alive() is True  # thread stays up, as lock is eventually acquired
+
