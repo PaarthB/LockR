@@ -131,7 +131,7 @@ class TestLockR:
             # Assert initial acquire is called only once
             verify(lockr_instance._lock, times=1).acquire(token=lockr_config.value, blocking=True)
             # Assert lock extend is called only once
-            verify(lockr_instance._lock, atmost=1).extend(lockr_config.timeout)
+            verify(lockr_instance._lock, times=1).extend(lockr_config.timeout)
             # Assert lock is not released if process stays up
             verify(lockr_instance._lock, times=0).release(...)
 
