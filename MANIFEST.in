@@ -2,3 +2,5 @@ include *.txt
 include README.md
 include *.png
 prune tests/
+prune cli/
+prune lockr/

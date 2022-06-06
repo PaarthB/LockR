@@ -11,11 +11,13 @@ import socket
 from os.path import dirname
 
 import pytest
+from fakeredis import FakeStrictRedis
 from mock import patch, MagicMock
 from redis import StrictRedis, RedisCluster
 from redis.cluster import ClusterNode
 
-from lockr.core import LockRConfig
+from lockr.constants import LUA_EXTEND_SCRIPT
+from lockr.core import LockRConfig, LockR
 
 
 class TestLockRConfig:
@@ -135,3 +137,39 @@ class TestLockRConfig:
         assert "[redis] section of config file must specify one of 'host' or 'cluster_nodes', not both." in caplog.text
 
 
+class TestLockR:
+    def test_not_dry_run(self, monkeypatch, caplog):
+        with caplog.at_level(logging.INFO):
+            #  ==== Test single redis host ====
+            lockr_config = LockRConfig.from_config_file(
+                config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+                redis_testing=True
+            )
+            lockr_instance = LockR(lockr_config=lockr_config)
+
+            # Ensure FakeStrictRedis is being used for testing
+            assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
+            assert lockr_instance.dry_run is False
+            assert lockr_instance.lockname == lockr_config.name
+            assert lockr_instance._lock.lua_extend.script == LUA_EXTEND_SCRIPT # assert LUA extend script is overwritten
+            assert "LockR will connect to single Redis instance" in caplog.text
+
+            #  ==== Test redis cluster ====
+            monkeypatch.setenv('REDIS_HOST', 'redis-host')
+            monkeypatch.setenv('REDIS_PORT', '1111')
+
+            lockr_config = LockRConfig.from_config_file(
+                config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-1.ini',
+                redis_testing=True
+            )
+            LockR(lockr_config=lockr_config)
+            assert "LockR will connect to a Redis Cluster." in caplog.text
+
+            #  ==== Test UNIX domain type redis server ====
+            monkeypatch.setenv('REDIS_HOST', '/var/run/redis/redis-server.sock')
+            lockr_config = LockRConfig.from_config_file(
+                config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr-7.ini',
+                redis_testing=True
+            )
+            LockR(lockr_config=lockr_config)
+            assert "LockR will connect to single Redis instance via Unix domain socket." in caplog.text
