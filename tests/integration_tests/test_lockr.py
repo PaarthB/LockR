@@ -218,7 +218,7 @@ class TestLockR:
         # Choose a very small TTL, such that lock expires after acquisition and fails to extend
         # each iteration for lock extension in LockR is followed by a sleep amount, which is not overridden
         # (defaults to 1/3rd of timeout). The timeout in file is 1000ms, so sleep is 1000/3 = 0.33s. This is more than
-        # the lock TTL of 1μs (microsecond) which is overridden by the file specified (which is 1s). This higher sleep
+        # the lock TTL of 1ms (millisecond) which is overridden by the file specified (which is 1s). This higher sleep
         # but lower TTL, ensures lock expires after acquiring. This tries to emulate case of GC pause or server reset,
         # such that long GC pauses or redis server reset can cause redis lock to expire / be removed.
         # If a large value is chosen like 1s, then this test fails, as the lock extend won't fail due to expiration
