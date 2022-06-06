@@ -8,7 +8,6 @@ import logging
 import os
 import shlex
 import socket
-import time
 from os.path import dirname
 
 import pytest
