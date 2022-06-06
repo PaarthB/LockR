@@ -1,3 +1,9 @@
+"""
+Unit tests for LockRConfig, testing:
+    - Correct file parsing / valid configuration
+    - Invalid file path
+    - Invalid file configuration specified
+"""
 import logging
 import os
 import shlex
@@ -14,8 +20,21 @@ from lockr.core import LockRConfig
 
 class TestLockRConfig:
 
+    def test_invalid_config_file_path(self, caplog):
+        """ Tests the use case of passing invalid file path """
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(FileNotFoundError) as file_not_found:
+                invalid_file_path = dirname(dirname(os.path.abspath(__file__))) + '/config_files/invalid-file.ini'
+                LockRConfig.from_config_file(
+                    config_file_path=invalid_file_path,
+                )
+        assert file_not_found.value.__str__() == f'File path {invalid_file_path} not found.'
+        assert f"Invalid lockr config path specified: {invalid_file_path} - " \
+               f"by default lockr.ini should be in the current directory" in caplog.text
+
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_config_valid_single_host(self, caplog, monkeypatch):
+        """ Tests the happy path of passing correct config file (single node) """
         # Setup
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
@@ -39,6 +58,7 @@ class TestLockRConfig:
 
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_config_valid_cluster_mode(self, caplog, monkeypatch):
+        """ Tests the happy path of passing correct config file (cluster mode) """
         # Setup
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
@@ -64,6 +84,7 @@ class TestLockRConfig:
             assert node.port == 1111
 
     def test_lockr_config_invalid__no_redis_section(self, caplog):
+        """ Tests the file validation failure for no redis section specified """
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
                 LockRConfig.from_config_file(
@@ -73,6 +94,7 @@ class TestLockRConfig:
         assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
     def test_lockr_config_invalid__no_command(self, caplog):
+        """ Tests the file validation failure for no command specified """
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
                 LockRConfig.from_config_file(
@@ -82,6 +104,7 @@ class TestLockRConfig:
         assert "[lockr] section does not have 'command' defined" in caplog.text
 
     def test_lockr_config_invalid__no_lockr_section(self, caplog):
+        """ Tests the file validation failure for no lockr section specified """
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
                 LockRConfig.from_config_file(
@@ -90,7 +113,8 @@ class TestLockRConfig:
             assert sys_exit.value.code == os.EX_CONFIG
         assert "Invalid lockr config file. Require both the sections [redis] and [lockr] to be defined" in caplog.text
 
-    def test_lockr_config_invalid__no_redis_host_or_startup_nodes(self, caplog):
+    def test_lockr_config_invalid__no_redis_host_or_cluster_nodes(self, caplog):
+        """ Tests the file validation failure for no redis host or cluster nodes specified """
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
                 LockRConfig.from_config_file(
@@ -100,7 +124,8 @@ class TestLockRConfig:
         assert "[redis] section of config file must specify either 'host' or 'cluster_nodes' section. " \
                "Didn't find either." in caplog.text
 
-    def test_lockr_config_invalid__both_redis_host_and_startup_nodes(self, caplog):
+    def test_lockr_config_invalid__both_redis_host_and_cluster_nodes(self, caplog):
+        """ Tests the file validation failure for BOTH redis host or cluster nodes specified """
         with caplog.at_level(logging.INFO):
             with pytest.raises(SystemExit) as sys_exit:
                 LockRConfig.from_config_file(

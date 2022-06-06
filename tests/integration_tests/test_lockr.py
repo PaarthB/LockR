@@ -1,3 +1,6 @@
+"""`
+    Integration tests for LockR testing end to end integration with Redis, and all the expected code paths
+`"""
 import logging
 import os
 import time
@@ -16,6 +19,9 @@ from lockr.core import LockR, LockRConfig
 class TestLockR:
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_run(self, caplog, monkeypatch):
+        """
+        Aims to test the happy path, when lock is acquired as expected and no exceptions are encountered
+        """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -54,6 +60,10 @@ class TestLockR:
 
     @patch('os.getpid', MagicMock(return_value=1))
     def test_lockr_run_process_exits_unexpectedly(self, caplog, monkeypatch):
+        """
+        Aims to test when lock is acquired but when process unexpectedly exits, it is released, as we don't need
+        the lock anymore
+        """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -91,6 +101,11 @@ class TestLockR:
         assert lockr_instance.owner() is None  # The prior lock was released
 
     def test_lock_extend_fails_and_reacquire_fails_due_to_preowned_lock(self, monkeypatch, caplog):
+        """
+        Aims to test when lock extension can fail, after acquiring once due to redis server reset or large GC pause
+        (for example), and is taken by another LockR server/instance previously waiting on lock to become available
+        In this case LockR tries to reacquire the lock, but since its taken now, it fails and exits
+        """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -137,6 +152,11 @@ class TestLockR:
         assert lockr_thread.is_alive() is False  # thread exits as expected
 
     def test_lock_extend_fails_and_reacquire_fails(self, monkeypatch, caplog):
+        """
+        Aims to test when lock extension can fail, after acquiring once (eg: due to redis connectivity problems)
+        (for example), and is not acquired by anyone else yet
+        In this case LockR tries to reacquire the lock, but due to connectivity failures, it fails and exits
+        """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -184,6 +204,11 @@ class TestLockR:
         assert lockr_thread.is_alive() is False  # thread exits as expected
 
     def test_lock_extend_fails_but_reacquires(self, monkeypatch, caplog):
+        """
+        Aims to test when lock extension can fail, after acquiring once due to redis server reset or large GC pause
+        (for example)
+        In this case LockR tries to reacquire the lock if its not taken by anyone yet
+        """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
         monkeypatch.setenv('REDIS_PORT', '1111')
         monkeypatch.setenv('TEST_PREFIX', 'prefix-testing')
@@ -191,7 +216,15 @@ class TestLockR:
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
             redis_testing=True
         )
-        lockr_config.timeout = 0.1  # Choose a very small TTL, such that lock expires after acquisition & can't extend
+        # Choose a very small TTL, such that lock expires after acquisition and fails to extend
+        # each iteration for lock extension in LockR is followed by a sleep amount, which is not overridden
+        # (defaults to 1/3rd of timeout). The timeout in file is 1000ms, so sleep is 1000/3 = 0.33s. This is more than
+        # the lock TTL of 1μs (microsecond) which is overridden by the file specified (which is 1s). This higher sleep
+        # but lower TTL, ensures lock expires after acquiring. This tries to emulate case of GC pause or server reset,
+        # such that long GC pauses or redis server reset can cause redis lock to expire / be removed.
+        # If a large value is chosen like 1s, then this test fails, as the lock extend won't fail due to expiration
+        lockr_config.timeout = 0.001  # 1 millisecond (smallest value that can be set for redis key or lock TTL)
+
         lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
         lockr_instance = LockR(lockr_config=lockr_config)
 
@@ -226,7 +259,6 @@ class TestLockR:
                 owner = lockr_instance.owner()
                 if owner is not None:
                     break
-                    
             assert owner is not None
             assert owner.decode('utf-8', 'ignore') == lockr_config.value
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
