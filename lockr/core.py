@@ -20,7 +20,6 @@ import atexit
 import logging
 import os
 import shlex
-import signal
 import socket
 import subprocess
 import sys
@@ -30,16 +29,13 @@ from functools import reduce
 from typing import Union, Type, List
 
 import fakeredis
-from fakeredis import FakeStrictRedis
-
 import redis
+from fakeredis import FakeStrictRedis
+from lockr.constants import LUA_EXTEND_SCRIPT
 from redis import StrictRedis, RedisCluster
 from redis.cluster import ClusterNode
-
 from redis.exceptions import LockNotOwnedError
 from redis.lock import Lock
-
-from lockr.constants import LUA_EXTEND_SCRIPT
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s LockR: %(message)s', datefmt='%Y-%m-%d %H:%M:%S %Z')
 logger = logging.getLogger()
@@ -204,11 +200,8 @@ class LockR:
         # This will add additional timeout instead of extend to a new timeout (which is actually set during acquisition)
         self._lock.lua_extend = self.redis.register_script(LUA_EXTEND_SCRIPT)
 
-        # The exception handling functions, for handling unexpected exceptions during the execution of the LockR process
-        atexit.register(self.crash)
-        atexit.register(self.handle_signal, signal.SIGTERM)
-        atexit.register(self.handle_signal, signal.SIGINT)
-        atexit.register(self.handle_signal, signal.SIGHUP)
+        # The cleanup method when LockR finishes, to ensure everything is cleaned up
+        atexit.register(self.cleanup)
 
     def run(self):
         """`
@@ -286,23 +279,8 @@ class LockR:
                 logger.info("Sending KILL signal to process with PID: %d", self.process.pid)
                 self.process.kill()
         assert self.process.poll() is not None
-
-    def handle_signal(self, sig):
-        """ Handles signals, logging appropriate message and cleanup """
-        if sig in [signal.SIGINT]:
-            logger.warning("Ctrl-C pressed, shutting down...")
-        if sig in [signal.SIGTERM]:
-            logger.warning("SIGTERM received, shutting down...")
-        self.cleanup()
-        sys.exit(-sig)
-
-    def crash(self):
-        """
-        For handling unexpected exits, like:
-           - Redis connectivity failure
-           - Memory failure, OOMEs etc.
-        """
-        self.cleanup()
+        self.process = None
+        logger.info("Process has been terminated")
 
     def owner(self):
         """ Returns the owner (value) of the lock if there is an owner, or 'None' if the key doesn't exist """

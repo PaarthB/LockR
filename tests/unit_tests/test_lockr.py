@@ -8,6 +8,7 @@ import logging
 import os
 import shlex
 import socket
+import time
 from os.path import dirname
 
 import pytest
@@ -138,6 +139,34 @@ class TestLockRConfig:
 
 
 class TestLockR:
+    def test_cleanup_terminates_the_process(self, caplog):
+        with caplog.at_level(logging.INFO):
+            #  ==== Test single redis host ====
+            lockr_config = LockRConfig.from_config_file(
+                config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+                redis_testing=True
+            )
+            lockr_config.command = "sleep 999999999"  # long-running command
+            lockr_instance = LockR(lockr_config=lockr_config)
+            lockr_instance.process = lockr_instance.start(lockr_config.command)
+            assert lockr_instance.process.poll() is None  # process is up
+            pid = lockr_instance.process.pid
+            lockr_instance.cleanup()
+        assert lockr_instance.process is None  # process has been terminated
+        assert f"Sending TERM to process with PID: {pid}" in caplog.text
+        assert "Process has been terminated" in caplog.text
+
+    def test_owner(self):
+        #  ==== Test single redis host ====
+        lockr_config = LockRConfig.from_config_file(
+            config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
+            redis_testing=True
+        )
+        lockr_instance = LockR(lockr_config=lockr_config)
+        assert lockr_instance.owner() is None  # no owner exists without setting it
+        lockr_instance.redis.set(lockr_config.name, "NEW_LOCK_OWNER")  # Take up the lock by a new owner
+        assert lockr_instance.owner().decode('utf-8', 'ignore') == "NEW_LOCK_OWNER"  # Compare owner is correct
+
     def test_not_dry_run(self, monkeypatch, caplog):
         with caplog.at_level(logging.INFO):
             #  ==== Test single redis host ====
