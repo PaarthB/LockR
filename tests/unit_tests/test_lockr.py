@@ -139,6 +139,7 @@ class TestLockRConfig:
 
 class TestLockR:
     def test_cleanup_terminates_the_process(self, caplog):
+        """ Tests process cleanup method, called when the LockR instance exits """
         with caplog.at_level(logging.INFO):
             #  ==== Test single redis host ====
             lockr_config = LockRConfig.from_config_file(
@@ -156,6 +157,7 @@ class TestLockR:
         assert "Process has been terminated" in caplog.text
 
     def test_owner(self):
+        """ Tests owner method for correct functionality """
         #  ==== Test single redis host ====
         lockr_config = LockRConfig.from_config_file(
             config_file_path=dirname(dirname(os.path.abspath(__file__))) + '/config_files/lockr.ini',
@@ -167,6 +169,7 @@ class TestLockR:
         assert lockr_instance.owner().decode('utf-8', 'ignore') == "NEW_LOCK_OWNER"  # Compare owner is correct
 
     def test_not_dry_run(self, monkeypatch, caplog):
+        """ Tests real run of LockR instantiation """
         with caplog.at_level(logging.INFO):
             #  ==== Test single redis host ====
             lockr_config = LockRConfig.from_config_file(
