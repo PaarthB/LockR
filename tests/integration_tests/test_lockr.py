@@ -206,7 +206,7 @@ class TestLockR:
     def test_lock_extend_fails_but_reacquires(self, monkeypatch, caplog):
         """
         Aims to test when lock extension can fail, after acquiring once due to redis server reset or large GC pause
-        (for example)
+        (for example), causing lock to expire.
         In this case LockR tries to reacquire the lock if its not taken by anyone yet
         """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
