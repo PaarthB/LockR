@@ -114,39 +114,38 @@ class TestLockR:
             redis_testing=True
         )
         lockr_config.command = "sleep 999999999"  # long-running command, to allow lock extension
+        # Set sleep > timeout/ttl period such that lock can be released/acquired easily by  someone else whilst process
+        # is waiting for the next extension
+        lockr_config.sleep = 2
         lockr_instance = LockR(lockr_config=lockr_config)
-        mock_lock = mock(Lock)
-
-        # Setup mocks on the lock, to simulate a lock being taken over during the execution of LockR by another instance
-        # This tries to simulate the case of a GC pause (eg), causing lock to expire and taken by someone else,
-        # using mocks (since this can't be controlled ourselves)
-        when(mock_lock).acquire(...).thenReturn(True)  # Allow acquiring lock first time
-        when(mock_lock).extend(...).thenRaise(LockNotOwnedError)
-        lockr_instance._lock = mock_lock
 
         spy2(lockr_instance.start)  # watch executions of process start (command to be executed)
         spy2(lockr_instance.cleanup)  # watch executions of cleanup method
-
-        # Ensure lock is taken by a different node
-        lockr_instance.redis.set(lockr_config.name, lockr_config.value)
+        spy2(lockr_instance._lock.acquire)  # watch executions of acquire method
+        spy2(lockr_instance._lock.release)  # Watch executions of lock release
+        spy2(lockr_instance._lock.extend)  # watch executions of lock extend method
 
         # Ensure FakeStrictRedis is being used for testing
         assert isinstance(lockr_instance.redis, FakeStrictRedis) is True
         with caplog.at_level(logging.INFO):
             lockr_thread = Thread(target=lockr_instance.run, daemon=True)
             lockr_thread.start()  # Start the lockr instance in separate thread to make this a non-blocking operation
-            time.sleep(1)  # Sleep few seconds to give chance for thread to run
-            assert f"Waiting on lock, currently held by {lockr_instance.redis.get(lockr_config.name)}" in caplog.text
+            time.sleep(1)  # Sleep few seconds to give chance for thread to run and acquire the lock
+            # Ensure lock is taken by a different node
+            lockr_instance.redis.set(lockr_config.name, "NEW_LOCK_OWNER")  # Take up the lock by a new owner
+            # Sleep a few more seconds, for LockR to finish its sleep period, and fail subsequent lock extension
+            time.sleep(2)
+            assert f"Waiting on lock, currently held by None" in caplog.text  # Initially lock is available
             assert f"Lock '{lockr_config.name}' acquired" in caplog.text  # Assert lock was acquired
             assert "Started process with PID" in caplog.text  # Assert the process was started
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
-            assert f"Unable to refresh lock, its owned by {lockr_instance.redis.get(lockr_config.name)} now" in caplog.text
+            assert f"Unable to refresh lock, its owned by b'NEW_LOCK_OWNER' now" in caplog.text
             verify(lockr_instance, times=1).start("sleep 999999999")  # Assert command was called
             verify(lockr_instance, times=1).cleanup(...)  # Assert cleanup was called after lock re-acquisition failure
             # Assert initial acquire is called only once
             verify(lockr_instance._lock, times=1).acquire(token=lockr_config.value, blocking=True)
-            # Assert lock extend is called only once
-            verify(lockr_instance._lock, times=1).extend(lockr_config.timeout)
+            # Assert lock extend is called twice (one in first iteration, and second after sleep of 5s)
+            verify(lockr_instance._lock, times=2).extend(lockr_config.timeout)
             # Assert lock is not released if process stays up
             verify(lockr_instance._lock, times=0).release(...)
         assert lockr_thread.is_alive() is False  # thread exits as expected
@@ -206,7 +205,7 @@ class TestLockR:
     def test_lock_extend_fails_but_reacquires(self, monkeypatch, caplog):
         """
         Aims to test when lock extension can fail, after acquiring once due to redis server reset or large GC pause
-        (for example), causing lock to expire.
+        (for example)
         In this case LockR tries to reacquire the lock if its not taken by anyone yet
         """
         monkeypatch.setenv('REDIS_HOST', 'redis-host')
@@ -264,4 +263,3 @@ class TestLockR:
             assert "Lock refresh failed, trying to re-acquire" in caplog.text
             assert "Lock refresh failed, but successfully re-acquired unclaimed lock" in caplog.text
             assert lockr_thread.is_alive() is True  # thread stays up, as lock is eventually acquired
-
