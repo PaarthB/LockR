@@ -1,20 +1,40 @@
 LockR
 ========
 
-.. image:: https://raw.githubusercontent.com/PaarthB/LockR/main/assets/lockr-logo-1.png
+.. |logo| image:: https://raw.githubusercontent.com/PaarthB/LockR/main/assets/lockr-logo-1.png
     :alt: lockr
+    :width: 35%
 
-.. image:: https://img.shields.io/badge/python-3.8-blue.svg
+.. |py38| image:: https://img.shields.io/badge/python-3.8-blue.svg
     :alt: python3.8
+    :width: 10%
 
-.. image:: https://img.shields.io/badge/python-3.9-blue.svg
+
+.. |py39| image:: https://img.shields.io/badge/python-3.9-blue.svg
     :alt: python3.9
+    :width: 10%
 
-.. image:: https://img.shields.io/badge/python-3.10-blue.svg
+
+.. |py310| image:: https://img.shields.io/badge/python-3.10-blue.svg
     :alt: python3.10
+    :width: 11%
 
-.. image:: https://raw.githubusercontent.com/dwyl/repo-badges/main/svg/build-passing.svg
+
+.. |CI| image:: https://raw.githubusercontent.com/dwyl/repo-badges/main/svg/build-passing.svg
     :alt: buildPassing
+    :width: 13%
+    
+.. |coverage| image:: https://img.shields.io/badge/coverage-90%25-lightgreen
+    :alt: coverage
+    :width: 13%
+    
+.. |stable| image:: https://img.shields.io/badge/latest-0.0.7-red
+    :alt: stable-release
+    :width: 11%
+
+|logo|
+--------
+|py38| |py39| |py310| |CI| |coverage| |stable|
 
 ``LockR`` is an open source CLI tool which solves the problem of concurrency management for distributed applications in cloud, using Redis.
 
