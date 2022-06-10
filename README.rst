@@ -147,7 +147,7 @@ Once you have the source you can run the tests with the following commands
 
 .. code-block:: console
 
-    pip install -r requirements-dev.txt
+    pip install -r requirements.dev.txt
     pytest tests/
 
 
