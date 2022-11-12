@@ -109,7 +109,7 @@ A general configuration looks as follows:
     # Specify all the cluster nodes each in new line. Conflicts with 'host' (only one can be specified).
     # Currently only works with environment variables
     # The nodes must have cluster mode enabled
-    cluster_nodes = ${REDIS_HOST}:${REDIS_HOST}
+    cluster_nodes = ${REDIS_HOST}:${REDIS_PORT}
 
     # port is optional and defaults to 6379. Specify environment variable or pass directly as well
     port = ${REDIS_HOST}
