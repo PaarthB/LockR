@@ -55,6 +55,13 @@ Why LockR?
 - No 3rd party dependencies: 
     * `LockR` has been built entirely using in-built python libraries, not relying on any 3rd party libraries.
 
+Setup
+-----
+
+- Redis Server:
+    * You need an up and running redis server (or redis cluster), as later you need to specify the hostname and port for the Redis Server
+    * **Minimum redis version**: `2.6.12`
+
 
 Getting started
 ----------------
@@ -112,7 +119,7 @@ A general configuration looks as follows:
     cluster_nodes = ${REDIS_HOST}:${REDIS_PORT}
 
     # port is optional and defaults to 6379. Specify environment variable or pass directly as well
-    port = ${REDIS_HOST}
+    port = ${REDIS_PORT}
     
     # In single Redis server mode only, you can SELECT the database. Defaults to 0. Ignored for cluster_nodes
     database = 1

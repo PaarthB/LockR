@@ -4,3 +4,5 @@ include *.png
 prune tests/
 prune cli/
 prune lockr/
+global-exclude *_test.py
+global-exclude *tests
