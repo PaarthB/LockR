@@ -28,7 +28,7 @@ LockR
     :alt: coverage
     :width: 13%
     
-.. |stable| image:: https://img.shields.io/badge/latest-0.0.8-lightblue
+.. |stable| image:: https://img.shields.io/badge/latest-0.1.1-lightblue
     :alt: stable-release
     :width: 11%
 
@@ -40,7 +40,7 @@ LockR
 
 In summary, it provides out of the box ability to use the well known **Redis Locking pattern** or **Redlock Algorithm**
 
-Read more `here <https://redis.io/docs/reference/patterns/distributed-locks/>`_
+Read more `here <https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/>`_
 
 Why LockR?
 ----------
