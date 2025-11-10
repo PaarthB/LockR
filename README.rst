@@ -5,10 +5,6 @@ LockR
     :alt: lockr
     :width: 35%
 
-.. |py38| image:: https://img.shields.io/badge/python-3.8-blue.svg
-    :alt: python3.8
-    :width: 10%
-
 
 .. |py39| image:: https://img.shields.io/badge/python-3.9-blue.svg
     :alt: python3.9
@@ -19,6 +15,10 @@ LockR
     :alt: python3.10
     :width: 11%
 
+
+.. |py311| image:: https://img.shields.io/badge/python-3.11-blue.svg
+    :alt: python3.10
+    :width: 11%
 
 .. |CI| image:: https://raw.githubusercontent.com/dwyl/repo-badges/main/svg/build-passing.svg
     :alt: buildPassing
@@ -34,7 +34,7 @@ LockR
 
 |logo|
 --------
-|py38| |py39| |py310| |CI| |coverage| |stable|
+|py39| |py39| |py310| |CI| |coverage| |stable|
 
 ``LockR`` is an open source CLI tool which solves the problem of concurrency management for distributed applications in cloud, using Redis.
 

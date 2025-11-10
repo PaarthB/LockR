@@ -1,8 +1,7 @@
 include *.txt
 include README.md
 include *.png
-prune tests/
-prune cli/
 prune lockr/
+prune tests/
 global-exclude *_test.py
 global-exclude *tests
