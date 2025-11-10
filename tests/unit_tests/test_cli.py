@@ -7,7 +7,7 @@ from os.path import dirname
 
 import pytest
 from click.testing import CliRunner
-from cli.main import cli_run
+from lockr.cli.commands import cli_run
 
 
 class TestCliRunner:
@@ -15,7 +15,8 @@ class TestCliRunner:
         """ Test successful dry run (we don't want to run a real command, since that would never exit """
         runner = CliRunner()
         with caplog.at_level(logging.INFO):
-            result = runner.invoke(cli_run, ["run", "--dry-run", "--config-file", dirname(dirname(os.path.abspath(__file__))) + "/config_files/lockr.ini"])
+            result = runner.invoke(cli_run, ["run", "--dry-run", "--config-file", dirname(dirname(os.path.abspath(__file__))) 
+                                             + "/config_files/lockr.ini"])
             assert "Valid configuration found. Dry run verification successful" in caplog.text
             assert result.exit_code == os.EX_OK
 

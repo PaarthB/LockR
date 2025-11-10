@@ -31,7 +31,7 @@ from typing import Union, Type, List
 import fakeredis
 import redis
 from fakeredis import FakeStrictRedis
-from lockr.constants import LUA_EXTEND_SCRIPT
+from lockr.lockr.constants import LUA_EXTEND_SCRIPT
 from redis import StrictRedis, RedisCluster
 from redis.cluster import ClusterNode
 from redis.exceptions import LockNotOwnedError
