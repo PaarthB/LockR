@@ -9,8 +9,8 @@ build-backend = "poetry.core.masonry.api"
 # --- Project Metadata (Replaces setup() arguments) ---
 [project]
 name = "lockr"
-version = "0.1.3"
-description = "A simple python CLI application to encrypt and decrypt files with a password, using symmetric AES encryption."
+version = "0.1.6"
+description = "A simple python CLI application, providing out-of-the-box Redis locking pattern for management of distributed applications in cloud."
 readme = {file = "README.rst", content-type = "text/x-rst"}
 license = {text = "MIT"}
 authors = [

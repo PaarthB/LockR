@@ -1,4 +1,4 @@
 """
 CLI tool leveraging Redis locking pattern for management of distributed applications in cloud
 """
-__version__ = '0.1.3'
+__version__ = '0.1.6'
