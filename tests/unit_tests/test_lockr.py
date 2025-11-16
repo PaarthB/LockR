@@ -16,8 +16,8 @@ from mock import patch, MagicMock
 from redis import StrictRedis, RedisCluster
 from redis.cluster import ClusterNode
 
-from lockr.constants import LUA_EXTEND_SCRIPT
-from lockr.core import LockRConfig, LockR
+from lockr.lockr.constants import LUA_EXTEND_SCRIPT
+from lockr.lockr.core import LockRConfig, LockR
 
 
 class TestLockRConfig:

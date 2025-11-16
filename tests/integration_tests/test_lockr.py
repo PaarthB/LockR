@@ -13,7 +13,7 @@ from mockito import verify, when, spy2, mock
 from redis.exceptions import LockNotOwnedError
 from redis.lock import Lock
 
-from lockr.core import LockR, LockRConfig
+from lockr.lockr.core import LockR, LockRConfig
 
 
 class TestLockR:
