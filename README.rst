@@ -28,7 +28,7 @@ LockR
     :alt: coverage
     :width: 13%
     
-.. |stable| image:: https://img.shields.io/badge/latest-0.1.1-lightblue
+.. |stable| image:: https://img.shields.io/badge/latest-0.1.5-lightblue
     :alt: stable-release
     :width: 11%
 
